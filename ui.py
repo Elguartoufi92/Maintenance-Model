@@ -155,7 +155,7 @@ with col_left:
         process_temp = st.slider("Process Temp [K]", 100.0, 600.0, 308.6)
 
     rot_speed = st.number_input("Rotational Speed [rpm]", 1000, 3000, 1551)
-    torque = st.number_input("Torque [Nm]", 3.0, 80.0, 42.8)
+    torque = st.number_input("Torque [Nm]", 3.0, 150.0, 42.8)
 
     st.markdown("<br>", unsafe_allow_html=True)
     

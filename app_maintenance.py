@@ -35,6 +35,18 @@ try:
 except Exception as e:
     print(f"❌ Error loading model: {e}")
 
+# Compteur dyal les requêtes
+total_scans = 0
+
+@app.get("/system_status")
+def system_status():
+    global total_scans
+    return {
+        "model_name": "Random Forest Classifier",
+        "total_scans_today": total_scans,
+        "status": "🟢 ONLINE"
+    }
+
 # 3. Schema dyal l-Input (JSON)
 class MachineInput(BaseModel):
     Type: str
@@ -64,6 +76,26 @@ def predict(data: MachineInput):
     return {
         "prediction": res,
         "class": int(prediction[0])
+    }
+
+@app.post("/predict_proba")
+def predict_failure(data: MachineInput):
+
+    input_df = pd.DataFrame([{
+        "Air temperature [K]": data.Air_temperature_K,
+        "Process temperature [K]": data.Process_temperature_K,
+        "Rotational speed [rpm]": data.Rotational_speed_rpm,
+        "Torque [Nm]": data.Torque_Nm,
+        "Tool wear [min]": data.Tool_wear_min,
+        "Type": data.Type  # 'Type' khass ykoun hwa l-lekher b7al f l-Notebook
+    }])
+    
+    # Njebdo la valeur li hdarti 3liha
+    valeur_exacte = model.predict_proba(input_df)[0][1]
+    
+    # Nkharjou resultat
+    return {
+        "valeur_brut": float(f"{valeur_exacte*100:.2f}"),
     }
 
 if __name__ == "__main__":

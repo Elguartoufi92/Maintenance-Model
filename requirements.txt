@@ -1,4 +1,4 @@
-streamlit 
+streamlit
 requests
 plotly
 numpy
@@ -7,5 +7,5 @@ joblib
 pandas
 pydantic
 uvicorn
-scikit-learn
+scikit-learn==1.6.1
 matplotlib

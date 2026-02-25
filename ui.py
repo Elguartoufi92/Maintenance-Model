@@ -1,8 +1,35 @@
 import streamlit as st
-import requests
 import plotly.graph_objects as go
 import time
 import numpy as np
+import pandas as pd
+import joblib
+import __main__
+
+# ── Model Configuration (Tariqa jdida bla FastAPI) ───────────────────────────
+def add_features_and_log_transform(X):
+    X_new = X.copy()
+    if "Torque [Nm]" in X_new.columns and "Rotational speed [rpm]" in X_new.columns:
+        X_new["power"] = X_new["Torque [Nm]"] * X_new["Rotational speed [rpm]"]
+    if "Process temperature [K]" in X_new.columns and "Air temperature [K]" in X_new.columns:
+        X_new["temp_diff"] = X_new["Process temperature [K]"] - X_new["Air temperature [K]"]
+    if "Rotational speed [rpm]" in X_new.columns:
+        X_new["Rotational speed [rpm]"] = np.log1p(X_new["Rotational speed [rpm]"])
+    return X_new
+
+# Had l'astuce daroriya bach joblib y-qra l'modèle bla machakil
+__main__.add_features_and_log_transform = add_features_and_log_transform
+
+@st.cache_resource
+def load_ai_model():
+    return joblib.load("predictive_maintenance_model.pkl")
+
+try:
+    model = load_ai_model()
+    model_online = True
+except Exception as e:
+    model = None
+    model_online = False
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -92,18 +119,20 @@ st.markdown('<p class="main-title">CORE AI: PREDICTIVE MAINTENANCE</p>', unsafe_
 st.markdown("<div style='text-align:center; color:#7fa4c4; margin-bottom:40px;'>High-Performance Neural Diagnostic Interface</div>", unsafe_allow_html=True)
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
+if 'scan_count' not in st.session_state:
+    st.session_state.scan_count = 142
+
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/2103/2103633.png", width=80)
     st.title("Control Panel")
     st.markdown("---")
     
-    # Njibou data mn API
-    try:
-        status_res = requests.get("http://127.0.0.1:8000/system_status").json()
-        st.write(f"📡 **Status:** {status_res['status']}")
-        st.write(f"🧠 **Core Engine:** {status_res['model_name']}")
-        st.write(f"🔄 **Scans Executed:** {status_res['total_scans_today']}")
-    except:
+    # Status Local mn Model (Mabqach API)
+    if model_online:
+        st.write("📡 **Status:** 🟢 ONLINE")
+        st.write("🧠 **Core Engine:** Random Forest AI")
+        st.write(f"🔄 **Scans Executed:** {st.session_state.scan_count}")
+    else:
         st.write("📡 **Status:** 🔴 OFFLINE")
     
     st.markdown("---")
@@ -132,31 +161,35 @@ with col_left:
     
     # L'Bouton
     if st.button("EXECUTE NEURAL DIAGNOSTIC"):
-        with st.spinner("Analyzing Sensor Patterns..."):
-            time.sleep(1.2) # Effect dyal t-khmam
-            # Request l-FastAPI
-            try:
-                payload = {
-                    "Type": machine_type,
-                    "Air_temperature_K": air_temp,
-                    "Process_temperature_K": process_temp,
-                    "Rotational_speed_rpm": float(rot_speed),
-                    "Torque_Nm": torque,
-                    "Tool_wear_min": float(tool_wear),
-                }
-                response1 = requests.post("http://127.0.0.1:8000/predict", json=payload)
-                response2 = requests.post("http://127.0.0.1:8000/predict_proba", json=payload)
-                st.session_state.result = {
-                    "prediction": response1.json()["prediction"],
-                    "class": response1.json()["class"],
-                    "probability": round(response2.json()["valeur_brut"], 1) 
-                }
-            except Exception as e:
-                st.session_state.result = {"class": 0, "prediction": "No Failure (Demo Mode)", "probability": 0}
+        if model_online:
+            with st.spinner("Analyzing Sensor Patterns..."):
+                time.sleep(1.2) # Effect dyal t-khmam
+                st.session_state.scan_count += 1
+                try:
+                    # N-saybou DataFrame b7al API walakin hna
+                    input_df = pd.DataFrame([{
+                        "Air temperature [K]": air_temp,
+                        "Process temperature [K]": process_temp,
+                        "Rotational speed [rpm]": float(rot_speed),
+                        "Torque [Nm]": torque,
+                        "Tool wear [min]": float(tool_wear),
+                        "Type": machine_type
+                    }])
+                    
+                    # N-khrjou résultat
+                    pred_class = int(model.predict(input_df)[0])
+                    prob_value = model.predict_proba(input_df)[0][1] * 100 
+                    
+                    st.session_state.result = {
+                        "prediction": "Failure" if pred_class == 1 else "No Failure",
+                        "class": pred_class,
+                        "probability": round(prob_value, 1) 
+                    }
+                except Exception as e:
+                    st.session_state.result = {"class": 0, "prediction": f"Error: {e}", "probability": 0}
+        else:
+            st.error("Model file not found!")
                 
-    # 👇 HNA FIN KAN L'MOCHKIL 👇
-    # Kherejna had l'code mn except w mn l'bouton! Kayqra mn session_state direct.
-    
     if "result" in st.session_state and st.session_state.result:
         st.markdown("<hr style='opacity:0.2;'>", unsafe_allow_html=True) # Fasil sghir kayban zwin
         
@@ -198,36 +231,36 @@ with col_right:
         # 🔵 Probability Gauge
         fig = go.Figure(go.Indicator(
             mode="gauge+number",
-            value=res["probability"], # Ghatakhod percentage li jaya mn API (ex: 50.4)
+            value=res["probability"],
             title={'text': "Failure Risk (%)", 'font': {'family': "Orbitron", 'color': "white"}}, 
             gauge={
-                'axis': {'range': [0, 100], 'tickcolor': "white"}, # L'Gauge min 0 tal 100
+                'axis': {'range': [0, 100], 'tickcolor': "white"},
                 'bar': {'color': color},
                 'steps': [
-                    {'range': [0, 50], 'color': "rgba(0,255,136,0.1)"}, # Khdar (Safe)
-                    {'range': [50, 100], 'color': "rgba(255,75,75,0.1)"} # 7mar (Danger)
+                    {'range': [0, 50], 'color': "rgba(0,255,136,0.1)"},
+                    {'range': [50, 100], 'color': "rgba(255,75,75,0.1)"}
                 ],
                 'threshold': {'line': {'color': "white", 'width': 4}, 'thickness': 0.75, 'value': 50} 
             }
         ))
         fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', font={'color': "white", 'family': "Orbitron"}, height=300)
         st.plotly_chart(fig, use_container_width=True)
-    # 🕸️ Radar Chart (Sensor Fingerprint)
+        
+        # 🕸️ Radar Chart (Sensor Fingerprint)
         st.markdown("<h4 style='text-align:center; color:#7fa4c4; font-family:Orbitron; margin-top:30px;'>⚙️ SENSOR FINGERPRINT</h4>", unsafe_allow_html=True)
         
-        # N-normaliziw les valeurs bash ybano mzyan f Radar (matalan b pourcentage dyal l'max)
         categories = ['Air Temp', 'Process Temp', 'Speed', 'Torque', 'Tool Wear']
         values = [
-            (air_temp / 600) * 100,      # Max approx 600K
-            (process_temp / 600) * 100,  # Max approx 600K
-            (rot_speed / 3000) * 100,    # Max approx 3000 rpm
-            (torque / 150) * 100,         # Max approx 150 Nm
-            (tool_wear / 600) * 100      # Max approx 600 min
+            (air_temp / 600) * 100,      
+            (process_temp / 600) * 100,  
+            (rot_speed / 3000) * 100,    
+            (torque / 150) * 100,         
+            (tool_wear / 600) * 100      
         ]
         
         fig_radar = go.Figure()
         fig_radar.add_trace(go.Scatterpolar(
-            r=values + [values[0]], # katsed l'ligne
+            r=values + [values[0]],
             theta=categories + [categories[0]],
             fill='toself',
             fillcolor=bg_glow,

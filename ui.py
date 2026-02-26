@@ -34,7 +34,7 @@ except Exception as e:
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Industrial AI Monitor v2.0",
-    page_icon="💎",
+    page_icon="https://cdn-icons-png.flaticon.com/512/2103/2103633.png",
     layout="wide",
 )
 
@@ -129,11 +129,11 @@ with st.sidebar:
     
     # Status Local mn Model (Mabqach API)
     if model_online:
-        st.write("📡 **Status:** 🟢 ONLINE")
-        st.write("🧠 **Core Engine:** Random Forest AI")
-        st.write(f"🔄 **Scans Executed:** {st.session_state.scan_count}")
+        st.write("**Status:** 🟢 ONLINE")
+        st.write("**Core Engine:** Random Forest AI")
+        st.write(f"**Scans Executed:** {st.session_state.scan_count}")
     else:
-        st.write("📡 **Status:** 🔴 OFFLINE")
+        st.write("**Status:** 🔴 OFFLINE")
     
     st.markdown("---")
     st.checkbox("Enable Deep Scan", value=True)

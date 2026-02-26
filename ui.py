@@ -33,7 +33,7 @@ except Exception as e:
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Industrial AI Monitor v2.0",
+    page_title="PredictMaintenance AI",
     page_icon="https://cdn-icons-png.flaticon.com/512/2103/2103633.png",
     layout="wide",
 )

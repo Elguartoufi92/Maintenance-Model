@@ -1,7 +1,7 @@
 # 🛰️ CORE AI: Predictive Maintenance System
 
 ## 🚀 Live Links
-* **Web Interface:** [https://insurance-prediction-pi.vercel.app/]https://maintenance-prediction-ai.streamlit.app/)
+* **Web Interface:** [https://insurance-prediction-pi.vercel.app/](https://maintenance-prediction-ai.streamlit.app/)
 ---
 
 ![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)
